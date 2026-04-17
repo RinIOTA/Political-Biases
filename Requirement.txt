@@ -1,0 +1,14 @@
+# Data Handling
+pandas
+datasets
+
+# Core AI Frameworks (Pinned for compatibility)
+transformers==4.40.2
+setfit==1.1.0
+sentence-transformers
+tf-keras
+
+# Supporting Libraries
+scikit-learn
+tqdm
+numpy<2.0.0
