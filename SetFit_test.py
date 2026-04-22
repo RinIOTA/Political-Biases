@@ -35,9 +35,7 @@ def predict_bias(text):
 # --- TEST CASES ---
 
 test_articles = [
-    "New government healthcare plan aims to provide universal coverage for all citizens.",
-    "Economic experts warn that tax hikes will stifle innovation and hurt small businesses.",
-    "The local city council approved the construction of a new public park yesterday.",
+    "Google testimony challenges key claim in Indonesian corruption trial. Google’s investment in Indonesia’s ride-hailing company GoTo wasn’t in anyway connected to the country’s Education Ministry’s decision to procure Chromebooks for schools during COVID-19 pandemic, former Google executives testified in court on Monday. The testimony undercut a central allegation by prosecutors in the closely watched corruption trial of Nadiem Anwar Makarim, the co-founder of Gojek and the education minister at the time of the procurement. It took place during the transition to remote learning in schools when classrooms were forced to shut down due to the COVID-19 pandemic. Makarim, 41, was arrested in September following an investigation into the procurement of Chromebook laptops that prosecutors say caused $125 million in state losses. Scott Beaumont, former president of Google Asia Pacific in 2019-2014, Caesar Sengupta, former general manager and vice president in 2018-2021, and William Florence, a former executive, testified at Jakarta’s Corruption Court on Monday via Zoom. ",
 ]
 
 print("\n" + "="*50)
