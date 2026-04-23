@@ -1,14 +1,22 @@
-# Data Handling
-pandas
-datasets
+# --- Core AI Frameworks (Locked for compatibility) ---
+transformers==4.39.0
+setfit==1.0.3
+huggingface_hub==0.22.2
+datasets==2.18.0
 
-# Core AI Frameworks (Pinned for compatibility)
-transformers==4.40.2
-setfit==1.1.0
+# --- LangChain RAG Suite (Modern Modular) ---
+langchain==0.2.0
+langchain-core==0.2.0
+langchain-community==0.2.0
+langchain-text-splitters==0.2.0
+
+# --- Vector Database & Embeddings ---
+chromadb
 sentence-transformers
-tf-keras
 
-# Supporting Libraries
+# --- Supporting Libraries ---
+pandas
+tf-keras
 scikit-learn
 tqdm
 numpy<2.0.0
