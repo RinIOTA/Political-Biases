@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Political Bias Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --left:        #2a6ebb;
+      --lean-left:   #6aaed6;
+      --center:      #74c476;
+      --lean-right:  #fd8d3c;
+      --right:       #d73027;
+      --bg:          #0e0e0e;
+      --surface:     #161616;
+      --border:      #2a2a2a;
+      --text:        #f0ece4;
+      --muted:       #666;
+      --accent:      #e8d5a3;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px 80px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* subtle grain */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { position: relative; z-index: 1; width: 100%; max-width: 720px; }
+
+    /* header */
+    header { text-align: center; margin-bottom: 56px; }
+    .eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+    .subtitle {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* spectrum bar */
+    .spectrum {
+      display: flex;
+      height: 4px;
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 40px 0 36px;
+    }
+    .spectrum span { flex: 1; }
+    .spectrum span:nth-child(1) { background: var(--left); }
+    .spectrum span:nth-child(2) { background: var(--lean-left); }
+    .spectrum span:nth-child(3) { background: var(--center); }
+    .spectrum span:nth-child(4) { background: var(--lean-right); }
+    .spectrum span:nth-child(5) { background: var(--right); }
+
+    /* input area */
+    .input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .input-label {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: block;
+    }
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      resize: none;
+      min-height: 140px;
+    }
+    textarea::placeholder { color: var(--muted); }
+
+    .input-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .char-count { font-size: 12px; color: var(--muted); }
+
+    button#analyzeBtn {
+      background: var(--accent);
+      color: #0e0e0e;
+      border: none;
+      padding: 10px 28px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    button#analyzeBtn:hover { opacity: 0.85; transform: translateY(-1px); }
+    button#analyzeBtn:active { transform: translateY(0); }
+    button#analyzeBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* error */
+    .error-msg {
+      font-size: 13px;
+      color: var(--right);
+      padding: 12px 16px;
+      border: 1px solid var(--right);
+      border-radius: 4px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    /* result */
+    #result {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    #result.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .result-header {
+      padding: 28px 28px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .result-label-text {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .result-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 42px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .confidence-block { text-align: right; }
+    .confidence-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 42px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--accent);
+    }
+    .confidence-sub {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    /* probability bars */
+    .prob-section { padding: 24px 28px; }
+    .prob-section-label {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+    .prob-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .prob-name {
+      font-size: 12px;
+      width: 80px;
+      flex-shrink: 0;
+      color: var(--muted);
+    }
+    .prob-name.active { color: var(--text); font-weight: 500; }
+    .prob-bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .prob-pct {
+      font-size: 12px;
+      width: 40px;
+      text-align: right;
+      color: var(--muted);
+    }
+    .prob-pct.active { color: var(--text); }
+
+    /* spectrum indicator */
+    .spectrum-result {
+      padding: 20px 28px;
+      border-top: 1px solid var(--border);
+    }
+    .spectrum-track {
+      position: relative;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, var(--left), var(--lean-left), var(--center), var(--lean-right), var(--right));
+    }
+    .spectrum-marker {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid var(--bg);
+      box-shadow: 0 0 0 2px white;
+      transition: left 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .spectrum-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #0e0e0e;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* examples */
+    .examples-section { margin-top: 40px; }
+    .examples-label {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .example-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .example-pill {
+      font-size: 12px;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+      color: var(--muted);
+      background: transparent;
+      font-family: 'DM Mono', monospace;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .example-pill:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <p class="eyebrow">SetFit · NLP · Political Analysis</p>
+    <h1>Political Bias<br/><em>Analyzer</em></h1>
+    <p class="subtitle">Paste a news article or headline. The model returns its<br/>predicted political leaning across a five-point spectrum.</p>
+  </header>
+
+  <div class="spectrum">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="input-card">
+    <label class="input-label" for="newsText">News text</label>
+    <textarea id="newsText" placeholder="Paste a news article, headline, or paragraph here…" spellcheck="false"></textarea>
+    <div class="input-footer">
+      <span class="char-count" id="charCount">0 characters</span>
+      <button id="analyzeBtn">Analyze</button>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div id="result">
+    <div class="result-card">
+      <div class="result-header">
+        <div>
+          <div class="result-label-text">Predicted leaning</div>
+          <div class="result-label" id="resultLabel">—</div>
+        </div>
+        <div class="confidence-block">
+          <div class="confidence-num" id="resultConfidence">—</div>
+          <div class="confidence-sub">Confidence</div>
+        </div>
+      </div>
+
+      <div class="prob-section">
+        <div class="prob-section-label">Full probability breakdown</div>
+        <div id="probBars"></div>
+      </div>
+
+      <div class="spectrum-result">
+        <div class="spectrum-track">
+          <div class="spectrum-marker" id="spectrumMarker"></div>
+        </div>
+        <div class="spectrum-labels">
+          <span>Left</span>
+          <span>Lean Left</span>
+          <span>Center</span>
+          <span>Lean Right</span>
+          <span>Right</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="examples-section">
+    <div class="examples-label">Try an example</div>
+    <div class="example-pills">
+      <button class="example-pill" data-text="The administration's new climate policy aims to cut carbon emissions by 40% over the next decade, investing billions in renewable energy and green infrastructure to create sustainable jobs.">Climate policy</button>
+      <button class="example-pill" data-text="Border patrol agents apprehended a record number of migrants last month as the administration faces growing pressure to tighten immigration enforcement and protect national security.">Immigration</button>
+      <button class="example-pill" data-text="The Federal Reserve held interest rates steady today, citing mixed economic signals as inflation gradually cools toward its 2% target while unemployment remains near historic lows.">Economy</button>
+      <button class="example-pill" data-text="Lawmakers on both sides of the aisle expressed concern over the proposed budget cuts to social programs, though they disagreed sharply on alternative solutions.">Bipartisan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const LABEL_COLORS = {
+    "Left":       "#2a6ebb",
+    "Lean Left":  "#6aaed6",
+    "Center":     "#74c476",
+    "Lean Right": "#fd8d3c",
+    "Right":      "#d73027"
+  };
+
+  const SPECTRUM_POS = {
+    "Left": 10, "Lean Left": 30, "Center": 50, "Lean Right": 70, "Right": 90
+  };
+
+  const textarea = document.getElementById("newsText");
+  const charCount = document.getElementById("charCount");
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const errorMsg = document.getElementById("errorMsg");
+  const resultDiv = document.getElementById("result");
+
+  textarea.addEventListener("input", () => {
+    charCount.textContent = `${textarea.value.length} characters`;
+  });
+
+  document.querySelectorAll(".example-pill").forEach(pill => {
+    pill.addEventListener("click", () => {
+      textarea.value = pill.dataset.text;
+      charCount.textContent = `${textarea.value.length} characters`;
+      textarea.focus();
+    });
+  });
+
+  analyzeBtn.addEventListener("click", analyze);
+  textarea.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") analyze();
+  });
+
+  async function analyze() {
+    const text = textarea.value.trim();
+    errorMsg.style.display = "none";
+
+    if (!text || text.length < 20) {
+      showError("Please enter at least a sentence of text to analyze.");
+      return;
+    }
+
+    analyzeBtn.disabled = true;
+    analyzeBtn.innerHTML = '<span class="spinner"></span>Analyzing';
+
+    try {
+      const res = await fetch("/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.error || "Something went wrong.");
+        return;
+      }
+
+      showResult(data);
+    } catch (err) {
+      showError("Could not connect to the server. Make sure app.py is running.");
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = "Analyze";
+    }
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.style.display = "block";
+  }
+
+  function showResult(data) {
+    const { label, confidence, all_probs } = data;
+    const color = LABEL_COLORS[label];
+
+    document.getElementById("resultLabel").textContent = label;
+    document.getElementById("resultLabel").style.color = color;
+    document.getElementById("resultConfidence").textContent = `${confidence}%`;
+
+    // probability bars
+    const order = ["Left", "Lean Left", "Center", "Lean Right", "Right"];
+    const container = document.getElementById("probBars");
+    container.innerHTML = "";
+
+    order.forEach(name => {
+      const pct = all_probs[name] ?? 0;
+      const isActive = name === label;
+      const row = document.createElement("div");
+      row.className = "prob-row";
+      row.innerHTML = `
+        <span class="prob-name ${isActive ? 'active' : ''}">${name}</span>
+        <div class="prob-bar-track">
+          <div class="prob-bar-fill" style="background:${LABEL_COLORS[name]}" data-width="${pct}"></div>
+        </div>
+        <span class="prob-pct ${isActive ? 'active' : ''}">${pct}%</span>
+      `;
+      container.appendChild(row);
+    });
+
+    // show result div
+    resultDiv.classList.add("visible");
+
+    // animate bars after a tick
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".prob-bar-fill").forEach(bar => {
+        bar.style.width = bar.dataset.width + "%";
+      });
+      document.getElementById("spectrumMarker").style.left = SPECTRUM_POS[label] + "%";
+    });
+
+    resultDiv.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+</script>
+</body>
+</html>
