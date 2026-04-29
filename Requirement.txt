@@ -20,3 +20,4 @@ tf-keras
 scikit-learn
 tqdm
 numpy<2.0.0
+matplotlib
