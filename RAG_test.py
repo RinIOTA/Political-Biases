@@ -2,6 +2,7 @@ from langchain_community.llms import Ollama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
+# Use llama3 for better result(Note that it would require more ram, Llama3 is 8B (5GB RAM); Phi3 or TinyLlama use < 2GB RAM)
 def build_classifier(model_name="phi3"):
     """Initializes the local LLM with a strict prompt."""
     
