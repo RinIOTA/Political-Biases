@@ -1,17 +1,15 @@
 import os
 from setfit import SetFitModel
 
-MODEL_PATH = "news_bias_setfit_model"
+MODEL_PATH = "setfit_bias_mpnet_v1"
 
 # None so can load it cleanly later
 model = None
 
 reverse_map = {
     0: "Left",
-    1: "Lean Left",
-    2: "Center",
-    3: "Lean Right",
-    4: "Right"
+    1: "Center",
+    2: "Right"
 }
 
 def load_model(path=MODEL_PATH):
@@ -29,39 +27,44 @@ def load_model(path=MODEL_PATH):
 
 def predict_bias(text):
     """
-    Takes a news string, predicts the bias, and returns the label + confidence.
-    This is the core function your Web API will call.
+    Takes a news string, predicts the bias, and returns a sorted dictionary 
+    of all labels and their exact confidence percentages.
     """
-    
+    global model # Make sure it uses the global model variable!!!
     if model is None:
         load_model()
+    raw_probs = model.predict_proba([text])
+    probs_list = raw_probs.flatten().tolist()
+    breakdown = {}
+    for idx, probability in enumerate(probs_list):
+        label = reverse_map[idx]
+        breakdown[label] = probability
         
-    probs = model.predict_proba([text])
-    prediction_idx = model.predict([text])[0].item()
-    confidence = probs[0][prediction_idx].item()
+    sorted_breakdown = dict(sorted(breakdown.items(), key=lambda item: item[1], reverse=True))
     
-    return reverse_map[prediction_idx], confidence
+    top_label = list(sorted_breakdown.keys())[0]
+    return top_label, sorted_breakdown
 
 def analyze_file(filepath):
     """
     Reads a standard text file (.txt) and analyzes its contents.
-    Returns the label, confidence score, and the extracted text.
+    Returns the top label, the breakdown dictionary, and the extracted text.
     """
     if not os.path.exists(filepath):
-        return None, 0.0, f"Error: File '{filepath}' not found."
+        return None, None, f"Error: File '{filepath}' not found."
         
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             text = f.read().strip()
             
         if not text:
-            return None, 0.0, "Error: File is empty."
+            return None, None, "Error: File is empty."
             
-        label, score = predict_bias(text)
-        return label, score, text
+        top_label, breakdown = predict_bias(text)
+        return top_label, breakdown, text
         
     except Exception as e:
-        return None, 0.0, f"Error reading file: {str(e)}"
+        return None, None, f"Error reading file: {str(e)}"
 
 # ==========================================
 # LOCAL CLI & TESTING INTERFACE
@@ -76,9 +79,9 @@ if __name__ == "__main__":
         print(e)
         exit()
 
-    # --- HARDCODED TEST CASES ---
+# --- HARDCODED TEST CASES ---
     test_articles = [
-        "Google testimony challenges key claim in Indonesian corruption trial. Google’s investment in Indonesia’s ride-hailing company GoTo wasn’t in anyway connected to the country’s Education Ministry’s decision to procure Chromebooks for schools during COVID-19 pandemic, former Google executives testified in court on Monday. The testimony undercut a central allegation by prosecutors in the closely watched corruption trial of Nadiem Anwar Makarim, the co-founder of Gojek and the education minister at the time of the procurement. It took place during the transition to remote learning in schools when classrooms were forced to shut down due to the COVID-19 pandemic. Makarim, 41, was arrested in September following an investigation into the procurement of Chromebook laptops that prosecutors say caused $125 million in state losses. Scott Beaumont, former president of Google Asia Pacific in 2019-2014, Caesar Sengupta, former general manager and vice president in 2018-2021, and William Florence, a former executive, testified at Jakarta’s Corruption Court on Monday via Zoom. "
+        "Google testimony challenges key claim in Indonesian corruption trial. Google’s investment in Indonesia’s ride-hailing company GoTo wasn’t in anyway connected to the country’s Education Ministry’s decision to procure Chromebooks for schools during COVID-19 pandemic, former Google executives testified in court on Monday. The testimony undercut a central allegation by prosecutors in the closely watched corruption trial of Nadiem Anwar Makarim, the co-founder of Gojek and the education minister at the time of the procurement. It took place during the transition to remote learning in schools when classrooms were forced to shut down due to the COVID-19 pandemic. Makarim, 41, was arrested in September following an investigation into the procurement of Chromebook laptops that prosecutors say caused $125 million in state losses. Scott Beaumont, former president of Google Asia Pacific in 2019-2014, Caesar Sengupta, former general manager and vice president in 2018-2021, and William Florence, a former executive, testified at Jakarta’s Corruption Court on Monday via Zoom."
     ]
 
     print("\n" + "="*50)
@@ -86,10 +89,12 @@ if __name__ == "__main__":
     print("="*50)
 
     for article in test_articles:
-        label, score = predict_bias(article)
+        label, breakdown = predict_bias(article)
+        top_score = breakdown[label]
+        
         print(f"\nArticle: \"{article[:70]}...\"")
         print(f"Result:  **{label}**")
-        print(f"Confidence: {score:.4f}")
+        print(f"Confidence: {top_score:.4f}")
 
     print("\n" + "="*50)
 
@@ -108,18 +113,26 @@ if __name__ == "__main__":
             
         elif choice == '1':
             user_input = input("\nEnter news text to analyze: ")
-            label, score = predict_bias(user_input)
-            print(f"\nAnalysis: This text leans **{label}** (Confidence: {score:.2%})")
             
+            top_label, breakdown = predict_bias(user_input)
+            
+            print(f"\nPrimary Classification: **{top_label}**")
+            print("Full Breakdown:")
+            for category, percentage in breakdown.items():
+                print(f"   - {category}: {percentage:.2%}")
+                
         elif choice == '2':
             filepath = input("\nEnter the full file path: ").strip()
             filepath = filepath.strip("\"'") 
             
-            label, score, content = analyze_file(filepath)
+            top_label, breakdown, content = analyze_file(filepath)
             
-            if label: 
+            if top_label: 
                 print(f"\nFile read successfully ({len(content)} characters extracted)")
-                print(f"Analysis: This text leans **{label}** (Confidence: {score:.2%})")
+                print(f"Primary Classification: **{top_label}**")
+                print("Full Breakdown:")
+                for category, percentage in breakdown.items():
+                    print(f"   - {category}: {percentage:.2%}")
             else: 
                 print(f"\nFailure to comply... {content}")
                 
