@@ -1,10 +1,3 @@
-{
-    "transformer_task": "feature-extraction",
-    "modality_config": {
-        "text": {
-            "method": "forward",
-            "method_output_name": "last_hidden_state"
-        }
-    },
-    "module_output_name": "token_embeddings"
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:418d388f6871550bb88747095fcc1e718be276b1dc9d5bb959abc1ad1c398aaa
+size 440
