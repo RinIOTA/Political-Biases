@@ -3,10 +3,18 @@ import string
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-MODEL_NAME = "all-mpnet-base-v2"
+# --- AVAILABLE MODELS ---
+AVAILABLE_MODELS = {
+    "1": "all-mpnet-base-v2",     
+    "2": "BAAI/bge-base-en-v1.5",  
+    "3": "all-MiniLM-L6-v2"         
+}
+
+CURRENT_MODEL_NAME = "all-mpnet-base-v2"
 model = None
 
-# --- LOCAL RAG KNOWLEDGE BASE ---
+# --- KNOWLEDGE BASE ---
+#REMEMBER to change this into the vector database for the full release!!!
 KNOWLEDGE_BASE = [
     {
         "id": "left_ref_1",
@@ -41,12 +49,12 @@ STOP_WORDS = {
     "has", "have", "had", "he", "she", "they", "we", "i", "who", "which", "as", "are"
 }
 
-def load_rag_model():
-    """Loads the embedding model into memory once."""
-    global model
-    if model is None:
-        print(f"Initializing RAG Embedding Model ({MODEL_NAME})...")
-        model = SentenceTransformer(MODEL_NAME)
+def load_rag_model(force_reload=False):
+    """Loads the embedding model into memory, reloading if the model swapped."""
+    global model, CURRENT_MODEL_NAME
+    if model is None or force_reload:
+        print(f"\nLoading RAG Embedding Model ({CURRENT_MODEL_NAME})...")
+        model = SentenceTransformer(CURRENT_MODEL_NAME)
     return model
 
 def cosine_similarity(v1, v2):
@@ -90,7 +98,7 @@ def analyze_bias_rag(input_text):
     sorted_breakdown = dict(sorted(breakdown.items(), key=lambda item: item[1], reverse=True))
     predicted_leaning = top_source["leaning"]
     
-    # --- RAG KEYWORD ATTRIBUTION LOGIC ---
+    # --- KEYWORD ATTRIBUTION LOGIC ---
     source_words = top_source["text"].split()
     unique_words = set()
     for w in source_words:
@@ -119,7 +127,7 @@ def analyze_bias_rag(input_text):
 
 def get_multiline_input():
     """Helper function to allow clean pasting of full, multi-line articles."""
-    print("\nPaste/type your article below. When finished, type 'DONE' on a new line and press Enter:")
+    print("\nPaste/type your article below. Type 'DONE' on a new line and press Enter:")
     print("-" * 70)
     lines = []
     while True:
@@ -138,14 +146,17 @@ if __name__ == "__main__":
     load_rag_model()
     
     while True:
-        print("\nOptions:")
+        print("\n" + "="*40)
+        print(f"CURRENT MODEL: {CURRENT_MODEL_NAME}")
+        print("="*40)
         print("1. Enter / Paste a custom article")
-        print("2. Run a hardcoded test")
-        print("3. Quit ('q')")
+        print("2. Run a hardcoded quick test")
+        print("3. Swap Embedding Model")
+        print("4. Quit ('q')")
         
-        choice = input("\nSelect an option (1-3): ").strip().lower()
+        choice = input("\nSelect an option (1-4): ").strip().lower()
         
-        if choice in ['3', 'q', 'quit', 'exit']:
+        if choice in ['4', 'q', 'quit', 'exit']:
             print("Shutting down RAG framework...")
             break
             
@@ -179,5 +190,27 @@ if __name__ == "__main__":
             print("Breakdown:")
             for alignment, percentage in breakdown.items():
                 print(f"   - {alignment}: {percentage:.2%}")
+                
+        elif choice == '3':
+            # --- SWAP MODEL LOGIC ---
+            print("\nAvailable Models:")
+            for key, name in AVAILABLE_MODELS.items():
+                marker = " (Active)" if name == CURRENT_MODEL_NAME else ""
+                print(f"   {key}. {name}{marker}")
+                
+            model_choice = input(f"\nSelect a model (1-{len(AVAILABLE_MODELS)}): ").strip()
+            
+            if model_choice in AVAILABLE_MODELS:
+                new_model = AVAILABLE_MODELS[model_choice]
+                if new_model != CURRENT_MODEL_NAME:
+                    CURRENT_MODEL_NAME = new_model
+                    model = None # Destroys the old model so the next query loads the new one
+                    print(f"\nModel successfully swapped to '{CURRENT_MODEL_NAME}'.")
+                    print("   (It will be loaded into memory on your next query).")
+                else:
+                    print("\nThat model is already active.")
+            else:
+                print("\nInvalid choice. Model not swapped.")
+                
         else:
-            print("Invalid choice. Please select 1, 2, or 3.")
+            print("Invalid choice. Please select 1, 2, 3, or 4.")
